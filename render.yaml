@@ -1,0 +1,52 @@
+databases:
+  - name: lost-and-found-db
+    databaseName: lost_and_found
+    user: lost_and_found_user
+    plan: free
+
+services:
+  # Backend Web Service (Django + Gunicorn)
+  - type: web
+    name: lost-and-found-backend
+    env: python
+    buildCommand: "cd backend && bash build.sh"
+    startCommand: "cd backend && gunicorn lost_and_found.wsgi:application --bind 0.0.0.0:$PORT"
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.4
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lost-and-found-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com,localhost,127.0.0.1"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://lost-and-found-frontend.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://lost-and-found-frontend.onrender.com"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+  # Frontend Static Site (Vite React)
+  - type: web
+    name: lost-and-found-frontend
+    env: static
+    buildCommand: "cd frontend && npm install && npm run build"
+    staticPublishPath: "./frontend/dist"
+    plan: free
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: "/index.html"
+    envVars:
+      - key: VITE_API_URL
+        value: "https://lost-and-found-backend.onrender.com"
